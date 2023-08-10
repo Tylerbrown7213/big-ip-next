@@ -20,7 +20,7 @@ template: |
           "class": "Service_HTTP",
           "enable": true,
           "persistenceMethods": [],
-          "pool": "{{PoolName}}",
+          "pool": "{{Pool_Name}}",
           "profileHTTP": {
             "use": "/{{tenant_name}}/app_Common_vip_ccg01_cal-fci-es-vip_ccg01_phx_paypalinc_com_92/http_default_v12"
           },
