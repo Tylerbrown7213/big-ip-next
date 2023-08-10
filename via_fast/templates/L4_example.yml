@@ -30,7 +30,7 @@ template: |
           "remark": "{\\\"fqdn\\\":\\\"cal-fci-es-vip.ccg01.phx.paypalinc.com\\\",\\\"description\\\":null}",
           "snat": "auto",
           "virtualAddresses": [
-            "{{virtual_Address}}"
+            "{{Virtual_Address}}"
           ],
           "virtualPort": {{Virtual_Port}}
         },
