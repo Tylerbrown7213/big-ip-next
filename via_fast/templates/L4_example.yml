@@ -30,20 +30,20 @@ template: |
           "remark": "{\\\"fqdn\\\":\\\"cal-fci-es-vip.ccg01.phx.paypalinc.com\\\",\\\"description\\\":null}",
           "snat": "auto",
           "virtualAddresses": [
-            "{{virtualAddress}}"
+            "{{virtual_Address}}"
           ],
-          "virtualPort": {{VirtualPort}}
+          "virtualPort": {{Virtual_Port}}
         },
-        "{{PoolName}}": {
+        "{{Pool_Name}}": {
           "class": "Pool",
           "members": [
             {
               "addressDiscovery": "static",
               "serverAddresses": [
-                  "{{PoolMember1}}",
-                  "{{PoolMember2}}"
+                  "{{Pool_Member1}}",
+                  "{{Pool_Member2}}"
               ],
-              "servicePort": {{ServicePort}},
+              "servicePort": {{Service_Port}},
               "shareNodes": true
             }
           ],
