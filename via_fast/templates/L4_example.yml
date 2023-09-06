@@ -22,7 +22,7 @@ template: |
           "persistenceMethods": [],
           "pool": "{{Pool_Name}}",
           "profileHTTP": {
-            "use": "/{{tenant_name}}/{{App_Name}}/http_default_v12"
+            "use": "/{{tenant_name}}/{{App_Name}}/{{profile_http}}"
           },
           "profileTCP": {
             "use": "/{{tenant_name}}/{{App_Name}}/{{profile_tcp}}"
@@ -54,7 +54,7 @@ template: |
           ]
         },
         "class": "Application",
-        "http_default_v12": {
+        "{{profile_http}}": {
           "class": "HTTP_Profile"
         },
         "{{monitor_tcp}}": {
