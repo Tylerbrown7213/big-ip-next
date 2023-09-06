@@ -61,7 +61,7 @@ definitions:
     title: Service Port
     description: Port for the pool members
     type: number
-    default: 443
+    default: 3000
     minimum: 0
     maximum: 65535
     uiMetaCM:
