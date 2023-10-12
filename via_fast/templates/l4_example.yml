@@ -1,12 +1,586 @@
-title: template title
-description: template description
-parameters:
-  tenant_name: default tenant name
-definitions: 
-  tenant_name:
-    title: Tenant Name
+# This is a production example template that can be used to build application services with load balancing capabilities.
+# In using this template, one will be prompted to provide:
+#   - at least a virtual IP address and port;
+#   - define Pools as needed;
+# as well as to enable and/or chose settings for:
+#   - Server and Client TLS certificates, WAF policy, Access policy, iRules;
+#   - Snat, FastL4, HTTP2, UDP, TCP.
+# When deploying  the application, BIG-IP Next Central Manager uses this template to create and submit an AS3 declaration to the target BIG-IP Next instance.
+
+contentType: application/json
+definitions:
+  # BIG-IP Next Central Manager UI Specific
+  # How to show/hide parameters/fields from the wizard:
+  #   Use: '{{parameter_name}}' for fields that show when creating an application service based on this template;
+  #   Use: 'parameter_name' for fields that need to remain hidden when creating an application service based on this template. Special case: {{randomized_tenant_name}} will not show.
+  #   For advance usage, uiMetaCM field: HideArrayOrObjectField can also be used, see uiMetaCM object usage below.
+  #
+  # CM UI Meta explanation of properties. uiMetaCM object can be attached to any parameter in this form:
+  #  parameter_name_x:
+  #    title: <Some Parameter> # This appears in the UI as the title of that parameter.
+  #    type: <some type>
+  #    description: <some description> # This appears in the UI in the "Info" icon of each parameter that has it defined.
+  #    dependencies: <ex: { enable_TLS_Client: true }> This is to inform this field will render when some other field value is true or false. This is used in 'AdvancedArrayGrid' to hide or show some fields when particular field value changes
+  #    uiMetaCM:  # specific CM UI info
+  #      order: 0 # Order of the parameter within the wizard page. 0 means First, 1 means second etc. Do not use the same number for more than one parameter.
+  #      page: 0  # If no 'page' parameter is defined it means the main and first tab (called Properties);
+  #               # 'page: 0' means the second page in the tabbed section, 1 means the third page, etc.)
+  #      pageName: <XYZ>   # The Tab Name as appears in the UI. (For all pages other than first - Properties or last - Summary)
+  #                        # Use this parameter only once throughout all uiMetaCM objects that are meant for the same page.
+  #      disableEdit: <true/false> # if set to true, the field can be set only for the first time (when creating the application service)
+  #                                # and it will be disabled thereafter (when editing the same application service).
+  #      field: <CM specific>  # Do not modify. This specifies UI fields that need special handling (eg: like specific list/grid type for pool members)
+  #                            # A value of "HideArrayOrObjectField" means that the object will not display in the UI even if it designated as a {{parameter}}.
+  #      widget: <CM specific> # Do not modify. This specifies UI widgets that modify default behavior (eg: like "toggle" vs "checkbox" vs "textarea" for the same input)
+  #                            # Use a value of "ToggleWidget" for boolean parameters that you want to appear as toggles.
+  #      field:AdvancedArrayGrid # Do not modify. Use this field to show advanced editable data grid where we have a column with multiple properties value like Security Policies
+
+  #      column: <CM specific> # Do not modify. This is order the column in AdvancedArrayGrid and to inform the grid to this property belongs to which column.
+  #      columnName: <CM specific> # Do not modify. This is to show the column title in AdvancedArrayGrid.
+  #
+
+  application_name: # Do not remove and do not change the property name. This is used to store application name and must retain same name in custom template as well
+    title: Application Service Name
+    description: The application service name cannot contain spaces and special characters except hyphens and underscores
     type: string
-    description: partition on bigip
+    pattern: ^[A-Za-z]([0-9A-Za-z_.-]{0,188}[0-9A-Za-z_.])?$
+    uiMetaCM:
+      field: hidden
+      page: 0
+      order: 0
+  application_description: # Do not remove and do not change the property name. This is used to store application description
+    title: Description
+    description: Enter a description for this application service
+    type: string
+    uiMetaCM:
+      field: hidden
+      page: 0
+      order: 1
+  pools: # Do not remove and do not change the property name. This is used to take pools information
+    type: array
+    default:
+      - {}
+    minItems: 1
+    uniqueItemProperties: ['poolName']
+    items:
+      type: object
+      properties:
+        poolName:
+          title: Pool Name
+          type: string
+          uniqueItems: true
+          pattern: (^[A-Za-z]([0-9A-Za-z_.-]{0,188}[0-9A-Za-z_.])?$)
+          uiMetaCM:
+            order: 1
+        poolMembers: # Do not change this property name.
+          title: Advanced Server Address of Pool Members
+          description: Network IP Address and name of each node
+          type: array
+          items:
+            type: object
+            properties:
+              address:
+                type: string
+                pattern: ((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$))
+              name:
+                type: string
+          uiMetaCM:
+            field: hidden
+        servicePort:
+          title: Service Port
+          description: Port for the pool members
+          type: number
+          default: 80
+          minimum: 0
+          maximum: 65535
+          uiMetaCM:
+            order: 2
+        loadBalancingMode:
+          title: Load-Balancing Mode
+          description: Choose from a list of available load balancing modes
+          type: string
+          minItems: 1
+          enum:
+            [
+              'least-connections-member',
+              'ratio-least-connections-member',
+              'ratio-session',
+              'round-robin',
+              'weighted-round-robin',
+              'fastest-app-response',
+              'predictive-member',
+            ]
+          default: round-robin
+          uiMetaCM:
+            order: 3
+        monitorType:
+          title: Monitor Type
+          description: Choose a non-custom default monitor
+          minItems: 1
+          type: array
+          items:
+            type: string
+            default: http
+            enum: ['http', 'https', 'icmp']
+          uiMetaCM:
+            order: 4
+        loadBalancingRatio:
+          title: Load Balancing Ratio
+          description: Ratio for load balancing. Use only with ratio specific load balancing methods.
+          type: number
+          minimum: 0
+          maximum: 65535
+          default: 10
+          uiMetaCM:
+            field: hidden
+      required:
+        - poolName
+        - servicePort
+        - loadBalancingMode
+    uiMetaCM:
+      page: 1
+      pageName: Pools
+  virtuals: # Do not remove and do not change the property name. This is used to take virtual server information
+    type: array
+    default:
+      - {}
+    minItems: 1
+    uniqueItemProperties: ['virtualName']
+    items:
+      type: object
+      properties:
+        virtualName:
+          title: Virtual Server Name
+          type: string
+          pattern: (^[A-Za-z]([0-9A-Za-z_.-]{0,188}[0-9A-Za-z_.])?$)
+          uiMetaCM:
+            column: 0
+        pool:
+          title: Pool
+          type: string
+          uiMetaCM:
+            column: 1
+            options:
+              type: dropdown
+              dependency: pools
+        virtualAddress: # Do not change this property name.
+          title: Virtual Address
+          description: Network IP address of the Virtual Server
+          type: string
+          pattern: ((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$))
+          uiMetaCM:
+            field: hidden
+            column: 6
+        virtualPort:
+          title: Virtual Port
+          description: Port of the virtual server
+          type: number
+          default: 80
+          minimum: 0
+          maximum: 65535
+          uiMetaCM:
+            column: 2
+
+        # # protocols and profiles section starts here
+
+        enable_TLS_Client: # Service_HTTPS
+          title: Enable HTTPS (Client-Side TLS)
+          description: Select a TLS Client Certificate that was defined on Central Manager
+          type: boolean
+          default: false
+          uiMetaCM:
+            widget: ToggleWidget
+            order: 0
+            column: 3
+            columnName: Protocols & Profiles
+        certificatesEnum:
+          title: Please choose an HTTPS certificate (for Client Side TLS)
+          description: Choose from a list of certificates available on Central Manager
+          type: string
+          preProcessCM: certificateNames
+          dependencies: { enable_TLS_Client: true }
+          uiMetaCM:
+            order: 1
+            column: 3
+            columnName: Protocols & Profiles
+        ciphers:
+          title: Ciphers
+          type: string
+          default: 'DEFAULT'
+          dependencies: { enable_TLS_Client: true }
+          uiMetaCM:
+            order: 2
+            column: 3
+            columnName: Protocols & Profiles
+        tls_c_1_2:
+          title: Enable TLS1.2
+          type: boolean
+          default: true
+          dependencies: { enable_TLS_Client: true }
+          uiMetaCM:
+            order: 4
+            column: 3
+            columnName: Protocols & Profiles
+        tls_c_1_3:
+          title: Enable TLS1.3
+          type: boolean
+          default: false
+          dependencies: { enable_TLS_Client: true }
+          uiMetaCM:
+            order: 5
+            column: 3
+            columnName: Protocols & Profiles
+        enable_TLS_Server:
+          title: Enable Server-side TLS
+          description: Enable TLS to encrypt server-side connections.
+          type: boolean
+          default: false
+          uiMetaCM:
+            widget: ToggleWidget
+            order: 10
+            column: 3
+            columnName: Protocols & Profiles
+        ciphers_server:
+          title: Ciphers
+          type: string
+          default: 'DEFAULT'
+          dependencies: { enable_TLS_Server: true }
+          uiMetaCM:
+            order: 11
+            column: 3
+            columnName: Protocols & Profiles
+        tls_s_1_2:
+          title: Enable TLS1.2
+          type: boolean
+          default: true
+          dependencies: { enable_TLS_Server: true }
+          uiMetaCM:
+            order: 13
+            column: 3
+            columnName: Protocols & Profiles
+        tls_s_1_3:
+          title: Enable TLS1.3
+          type: boolean
+          default: false
+          dependencies: { enable_TLS_Server: true }
+          uiMetaCM:
+            order: 14
+            column: 3
+            columnName: Protocols & Profiles
+        enable_snat:
+          title: Enable SNAT
+          description: Enable to select Source Network Address Translation
+          type: boolean
+          default: true
+          uiMetaCM:
+            widget: ToggleWidget
+            order: 20
+            column: 3
+            columnName: Protocols & Profiles
+        snat_automap:
+          title: Enable Auto SNAT
+          description: Enable to select Auto SNAT
+          type: boolean
+          default: true
+          dependencies: { enable_snat: true }
+          uiMetaCM:
+            widget: ToggleWidget
+            order: 21
+            column: 3
+            columnName: Protocols & Profiles
+        snat_addresses:
+          title: SNAT Pool Addresses
+          type: array
+          default: []
+          dependencies: { snat_automap: false }
+          items:
+            type: string
+          uiMetaCM:
+            order: 22
+            column: 3
+            columnName: Protocols & Profiles
+        enable_FastL4: # Service_L4
+          title: Enable FastL4
+          description: Enable to select FastL4
+          type: boolean
+          default: false
+          dependencies: { enable_TLS_Client: false }
+          uiMetaCM:
+            widget: ToggleWidget
+            order: 30
+            column: 3
+            columnName: Protocols & Profiles
+        FastL4_idleTimeout:
+          title: Idle Timeout
+          description: FastL4 Idle Timeout
+          type: integer
+          minimum: 0
+          maximum: 3600
+          default: 600
+          dependencies: { enable_FastL4: true }
+          uiMetaCM:
+            order: 31
+            column: 3
+            columnName: Protocols & Profiles
+        FastL4_looseClose:
+          title: Loose Close
+          description: FastL4 Loose Close
+          type: boolean
+          default: true
+          dependencies: { enable_FastL4: true }
+          uiMetaCM:
+            order: 32
+            column: 3
+            columnName: Protocols & Profiles
+        FastL4_looseInitialization:
+          title: Loose Initialization
+          description: FastL4 Loose Initialization
+          type: boolean
+          default: true
+          dependencies: { enable_FastL4: true }
+          uiMetaCM:
+            order: 33
+            column: 3
+            columnName: Protocols & Profiles
+        FastL4_resetOnTimeout:
+          title: Reset On Timeout
+          description: FastL4 Reset On Timeout
+          type: boolean
+          default: true
+          dependencies: { enable_FastL4: true }
+          uiMetaCM:
+            order: 34
+            column: 3
+            columnName: Protocols & Profiles
+        FastL4_tcpCloseTimeout:
+          title: TCP Close Timeout
+          description: FastL4 TCP Close Timeout
+          type: integer
+          minimum: 0
+          default: 43200
+          dependencies: { enable_FastL4: true }
+          uiMetaCM:
+            order: 35
+            column: 3
+            columnName: Protocols & Profiles
+        FastL4_tcpHandshakeTimeout:
+          title: TCP Handshake Timeout
+          description: FastL4 TCP Handshake Timeout
+          type: integer
+          minimum: 0
+          default: 43200
+          dependencies: { enable_FastL4: true }
+          uiMetaCM:
+            order: 36
+            column: 3
+            columnName: Protocols & Profiles
+        enable_HTTP2_Profile: # Service_HTTPS
+          title: Enable HTTP2 Profile
+          description: Enable HTTP2 Profile
+          type: boolean
+          default: false
+          uiMetaCM:
+            widget: ToggleWidget
+            order: 40
+            column: 3
+            columnName: Protocols & Profiles
+        enable_UDP_Profile: # Service_UDP
+          title: Enable UDP Profile
+          description: Enable UDP Profile
+          type: boolean
+          default: false
+          dependencies: { enable_TLS_Client: false }
+          uiMetaCM:
+            widget: ToggleWidget
+            order: 50
+            column: 3
+            columnName: Protocols & Profiles
+        UDP_idle_timeout:
+          title: UDP Idle Timeout
+          description: UDP Idle Timeout
+          type: integer
+          minimum: 0
+          default: 60
+          dependencies: { enable_UDP_Profile: true }
+          uiMetaCM:
+            order: 51
+            column: 3
+            columnName: Protocols & Profiles
+        enable_TCP_Profile: # Service_TCP, Service_HTTP and Service_HTTPS
+          title: Enable TCP Profile
+          description: Enable TCP Profile
+          type: boolean
+          default: false
+          dependencies: { enable_TLS_Client: false }
+          uiMetaCM:
+            widget: ToggleWidget
+            order: 60
+            column: 3
+            columnName: Protocols & Profiles
+        TCP_idle_timeout:
+          title: TCP Idle Timeout
+          description: TCP Idle Timeout
+          type: integer
+          minimum: 0
+          default: 60
+          dependencies: { enable_TCP_Profile: true }
+          uiMetaCM:
+            order: 61
+            column: 3
+            columnName: Protocols & Profiles
+        enable_mirroring:
+          title: Enable Connection Mirroring
+          description: Enable Connection Mirroring
+          type: boolean
+          default: true
+          uiMetaCM:
+            widget: ToggleWidget
+            order: 70
+            column: 3
+            columnName: Protocols & Profiles
+
+        # Security Policies section starts from here
+        enable_WAF:
+          title: Use a WAF Policy
+          description: Enable to select a WAF Policy that was defined on Central Manager
+          type: boolean
+          default: false
+          uiMetaCM:
+            widget: ToggleWidget
+            order: 0
+            column: 4
+            columnName: Security Policies
+        WAFPolicyName:
+          type: string
+          title: WAF Policy Name
+          dependencies: { enable_WAF: true }
+          uiMetaCM:
+            field: SelectCreateCloneField
+            order: 1
+            column: 4
+            columnName: Security Policies
+        enable_Access:
+          title: Use an Access Policy
+          description: Enable to select an Access Policy that was defined on Central Manager
+          type: boolean
+          default: false
+          uiMetaCM:
+            widget: ToggleWidget
+            order: 2
+            column: 4
+            columnName: Security Policies
+        accessPolicyEnum:
+          title: Access Policy
+          description: Select the Access policy.
+          type: string
+          dependencies: { enable_Access: true }
+          uiMetaCM:
+            field: SelectAccessConfigurationField
+            order: 3
+            column: 4
+            columnName: Security Policies
+        accessAdditionalConfigurations: # metadata used by CM for displaying Access Policies. Do not delete.
+          title: Access Additional Configurations (For internal use. DO NOT MODIFY)
+          description: Retrieves Access Internal Configurations (For internal use. DO NOT MODIFY).
+          type: string
+          dependencies: { enable_Access: true }
+          uiMetaCM:
+            field: HideArrayOrObjectField
+            order: 4
+            column: 4
+            columnName: Security Policies
+
+        #iRules section starts from here
+        enable_iRules:
+          title: Use iRules
+          description: Select one more iRules. Order is important. The iRules will be executed in the priority showed in the grid, with the first beeing executed first.
+          type: boolean
+          default: false
+          uiMetaCM:
+            widget: ToggleWidget
+            order: 0
+            page: 4
+            column: 5
+            columnName: iRules
+        iRulesEnum:
+          title: iRules
+          description: Select the iRules for this application. iRules are executed in the list order.
+          type: array
+          dependencies: { enable_iRules: true }
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              version:
+                type: string
+              userId:
+                type: string
+              staged:
+                type: boolean
+          uiMetaCM:
+            field: SelectIruleField
+            order: 1
+            column: 5
+            columnName: iRules
+        iRulesContent: # metadata used by CM for displaying iRules. Do not delete.
+          type: array
+          default: []
+          dependencies: { enable_iRules: true }
+          items:
+            type: object
+            properties:
+              iRuleContent:
+                type: string
+                default: ''
+              iRuleName:
+                type: string
+                default: ''
+          uiMetaCM:
+            field: HideArrayOrObjectField
+            order: 2
+            column: 5
+            columnName: iRules
+        iRulesList: # metadata used by CM for displaying iRules. Do not delete.
+          type: array
+          default: []
+          dependencies: { enable_iRules: true }
+          items:
+            type: string
+          uiMetaCM:
+            field: HideArrayOrObjectField
+            column: 5
+            order: 3
+            columnName: iRules
+      required:
+        - virtualName
+        - pool
+    uiMetaCM:
+      field: AdvancedArrayGrid
+      page: 0
+      order: 1
+      pageName: Virtual Servers
+
+# Central Manager specific UI Widgets - do not modify.
+# first line contains pre deploy text for each feature
+# second line contains the main deploy request parameter of each feature
+# third line contains the command which has the feature request method and parameters
+central_manager:
+  preDeployCM.certificate:
+    certificatesEnum:
+      command: deployCertAndKey:{'certificate_name'='{{certificatesEnum}}'}
+  preDeployCM.wafPolicy:
+    WAFPolicyName:
+      command: wafPolicy:{'policy_name'='{{WAFPolicyName}}'}
+  preDeployCM.iRuleContent:
+    iRulesEnum:
+      command: getIRuleContent
+  preDeployCM.accessAdditionalConfigurations:
+    accessPolicyEnum:
+      command: accessAdditionalConfigurations:{'policyName'= '{{accessPolicyEnum}}'}
+  preDeployCM.accessPolicy:
+    accessPolicyEnum:
+      command: accessPolicy:{'policyName'= '{{accessPolicyEnum}}'}
 template: | 
   {
     "class": "ADC",
@@ -14,26 +588,45 @@ template: |
     "id": "urn:uuid:7e7f1316-0c84-4130-9c6b-7c63fd0d1809",
     "label": "F5 BIG-IP Next Converted Declaration",
     "remark": "Generated by Automation Config Converter",
-    "{{tenant_name}}": {
-      "{{App_Name}}": {
-        "{{App_Name}}": {
-          "class": "Service_HTTP",
-          "enable": true,
-          "persistenceMethods": [],
-          "pool": "{{Pool_Name}}",
+    "{{randomized_tenant_name}}": {
+          "class": "Tenant",
+          "{{application_name}}": {
+            "class": "Application",
+            {{#pools}}
+              "{{poolName}}": {
+                "class": "Pool",
+                "loadBalancingMode": {{loadBalancingMode}},
+                "members": [{
+                  "servers": [
+                    {{#poolMembers}}
+                     {
+                       name: {{name}},
+                       address: {{address}}
+                     },
+                    {{/poolMembers}}
+                  ],
+                  "servicePort": {{servicePort::integer}},
+                  "ratio": 10{{!loadBalancingRatio}}
+                }],
+                "monitors": [{{monitorType}}]
+              },
+            {{/pools}}
           "profileHTTP": {
-            "use": "/{{tenant_name}}/{{App_Name}}/{{profile_http}}"
+            "use": "/{{randomized_tenant_name}}/{{application_name}}/{{profile_http}}"
           },
           "profileTCP": {
-            "use": "/{{tenant_name}}/{{App_Name}}/{{profile_tcp}}"
+            "use": "/{{randomized_tenant_name}}/{{application_name}}/{{profile_tcp}}"
           },
           "remark": "{\\\"fqdn\\\":\\\"testdomain.com\\\",\\\"description\\\":null}",
           "snat": "auto",
-          "virtualAddresses": [
-            "{{Virtual_Address}}"
-          ],
-          "virtualPort": {{Virtual_Port}}
-        },
+        "{{virtualName}}": {
+                "pool": "{{pool}}",
+                "persistenceMethods": [],
+                "virtualAddresses": [
+                    "{{virtualAddress}}"
+                ],
+                "virtualPort": {{virtualPort::integer}}
+        }
         "{{Pool_Name}}": {
           "class": "Pool",
           "members": [
@@ -49,7 +642,7 @@ template: |
           ],
           "monitors": [
             {
-              "use": "/{{tenant_name}}/{{App_Name}}/{{monitor_tcp}}"
+              "use": "/{{randomized_tenant_name}}/{{application_name}}/{{monitor_tcp}}"
             }
           ]
         },
@@ -77,3 +670,4 @@ template: |
       "class": "Tenant"
     }
   }
+}
