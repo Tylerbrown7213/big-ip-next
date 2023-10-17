@@ -1,146 +1,308 @@
----
+# This is a production example template that can be used to build application services with load balancing capabilities.
+# In using this template, one will be prompted to provide:
+#   - at least a virtual IP address and port;
+#   - define Pools as needed;
+# as well as to enable and/or chose settings for:
+#   - Server and Client TLS certificates, WAF policy, Access policy, iRules;
+#   - Snat, FastL4, HTTP2, UDP, TCP.
+# When deploying  the application, BIG-IP Next Central Manager uses this template to create and submit an AS3 declaration to the target BIG-IP Next instance.
+
+contentType: application/json
 definitions:
-  application_name:
-    title: Application Name
+  # BIG-IP Next Central Manager UI Specific
+  # How to show/hide parameters/fields from the wizard:
+  #   Use: '{{parameter_name}}' for fields that show when creating an application service based on this template;
+  #   Use: 'parameter_name' for fields that need to remain hidden when creating an application service based on this template. Special case: {{randomized_tenant_name}} will not show.
+  #   For advance usage, uiMetaCM field: HideArrayOrObjectField can also be used, see uiMetaCM object usage below.
+  #
+  # CM UI Meta explanation of properties. uiMetaCM object can be attached to any parameter in this form:
+  #  parameter_name_x:
+  #    title: <Some Parameter> # This appears in the UI as the title of that parameter.
+  #    type: <some type>
+  #    description: <some description> # This appears in the UI in the "Info" icon of each parameter that has it defined.
+  #    dependencies: <ex: { enable_TLS_Client: true }> This is to inform this field will render when some other field value is true or false. This is used in 'AdvancedArrayGrid' to hide or show some fields when particular field value changes
+  #    uiMetaCM:  # specific CM UI info
+  #      order: 0 # Order of the parameter within the wizard page. 0 means First, 1 means second etc. Do not use the same number for more than one parameter.
+  #      page: 0  # If no 'page' parameter is defined it means the main and first tab (called Properties);
+  #               # 'page: 0' means the second page in the tabbed section, 1 means the third page, etc.)
+  #      pageName: <XYZ>   # The Tab Name as appears in the UI. (For all pages other than first - Properties or last - Summary)
+  #                        # Use this parameter only once throughout all uiMetaCM objects that are meant for the same page.
+  #      disableEdit: <true/false> # if set to true, the field can be set only for the first time (when creating the application service)
+  #                                # and it will be disabled thereafter (when editing the same application service).
+  #      field: <CM specific>  # Do not modify. This specifies UI fields that need special handling (eg: like specific list/grid type for pool members)
+  #                            # A value of "HideArrayOrObjectField" means that the object will not display in the UI even if it designated as a {{parameter}}.
+  #      widget: <CM specific> # Do not modify. This specifies UI widgets that modify default behavior (eg: like "toggle" vs "checkbox" vs "textarea" for the same input)
+  #                            # Use a value of "ToggleWidget" for boolean parameters that you want to appear as toggles.
+  #      field:AdvancedArrayGrid # Do not modify. Use this field to show advanced editable data grid where we have a column with multiple properties value like Security Policies
+
+  #      column: <CM specific> # Do not modify. This is order the column in AdvancedArrayGrid and to inform the grid to this property belongs to which column.
+  #      columnName: <CM specific> # Do not modify. This is to show the column title in AdvancedArrayGrid.
+  #
+
+  application_name: # Do not remove and do not change the property name. This is used to store application name and must retain same name in custom template as well
+    title: Application Service Name
+    description: The application service name cannot contain spaces and special characters except hyphens and underscores
     type: string
-    pattern: ^[A-Za-z]([0-9A-Za-z_-]{0,189})?$
-    description: The application name should not contain spaces and special
-      characters except hyphens and underscores
+    pattern: ^[A-Za-z]([0-9A-Za-z_.-]{0,188}[0-9A-Za-z_.])?$
     uiMetaCM:
+      field: hidden
+      page: 0
       order: 0
-      disableEdit: true
-  virtualAddresses:
-    title: Virtual Address
+  application_description: # Do not remove and do not change the property name. This is used to store application description
+    title: Description
+    description: Enter a description for this application service
     type: string
-    description: Network IP address of the virtual server
-    pattern: ((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$))
     uiMetaCM:
+      field: hidden
+      page: 0
       order: 1
-  virtualPort:
-    title: Virtual Port
-    description: Port of the virtual server
-    type: number
-    default: 80
-    minimum: 0
-    maximum: 65535
-    uiMetaCM:
-      order: 2
-  blue_servers:
-    title: Blue Server Addresses
-    description: Network IP Address server
+  pools: # Do not remove and do not change the property name. This is used to take pools information
     type: array
+    default:
+      -  {"loadBalancingMode": "round-robin","monitorType": ["http"],"poolName": "green_pool","servicePort": 80}
+    minItems: 1
+    uniqueItemProperties: ['poolName']
     items:
       type: object
       properties:
-        address:
+        poolName:
+          title: Pool Name
           type: string
-          pattern: ((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$))
+          uniqueItems: true
+          pattern: (^[A-Za-z]([0-9A-Za-z_.-]{0,188}[0-9A-Za-z_.])?$)
+          uiMetaCM:
+            order: 1
+        poolMembers: # Do not change this property name.
+          title: Advanced Server Address of Pool Members
+          description: Network IP Address and name of each node
+          type: array
+          items:
+            type: object
+            properties:
+              address:
+                type: string
+                pattern: ((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$))
+              name:
+                type: string
+          uiMetaCM:
+            field: hidden
+        servicePort:
+          title: Service Port
+          description: Port for the pool members
+          type: number
+          default: 80
+          minimum: 0
+          maximum: 65535
+          uiMetaCM:
+            order: 2
+        loadBalancingMode:
+          title: Load-Balancing Mode
+          description: Choose from a list of available load balancing modes
+          type: string
+          minItems: 1
+          enum:
+            [
+              'least-connections-member',
+              'ratio-least-connections-member',
+              'ratio-session',
+              'round-robin',
+              'weighted-round-robin',
+              'fastest-app-response',
+              'predictive-member',
+            ]
+          default: round-robin
+          uiMetaCM:
+            order: 3
+        monitorType:
+          title: Monitor Type
+          description: Choose a non-custom default monitor
+          minItems: 1
+          type: array
+          items:
+            type: string
+            default: http
+            enum: ['http', 'icmp']
+          uiMetaCM:
+            order: 4
+        loadBalancingRatio:
+          title: Load Balancing Ratio
+          description: Ratio for load balancing. Use only with ratio specific load balancing methods.
+          type: number
+          minimum: 0
+          maximum: 65535
+          default: 10
+          uiMetaCM:
+            field: hidden
       required:
-        - address
+        - poolName
+        - servicePort
+        - loadBalancingMode
     uiMetaCM:
-      order: 0
-      page: 0
-      pageName: Endpoints (Pool Members)
-  green_servers:
-    title: Green Server Addresses
-    description: Network IP Address server
+      page: 1
+      pageName: Pools
+  virtuals: # Do not remove and do not change the property name. This is used to take virtual server information
     type: array
+    default:
+      - {'virtualName':'http_vs',"pool": "green_pool"}
+    minItems: 1
+    uniqueItemProperties: ['virtualName']
     items:
       type: object
       properties:
-        address:
+        pool:
+          title: Pool
+          type: string
+          uiMetaCM:
+            column: 1
+            options:
+              type: dropdown
+              dependency: pools
+        virtualName:
+          title: Virtual Server Name
+          type: string
+          pattern: (^[A-Za-z]([0-9A-Za-z_.-]{0,188}[0-9A-Za-z_.])?$)
+          uiMetaCM:
+            column: 0
+        virtualAddress: # Do not change this property name.
+          title: Virtual Address
+          description: Network IP address of the Virtual Server
           type: string
           pattern: ((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$))
+          uiMetaCM:
+            field: hidden
+            column: 6
+        virtualPort:
+          title: Virtual Port
+          description: Port of the virtual server
+          type: number
+          default: 80
+          minimum: 0
+          maximum: 65535
+          uiMetaCM:
+            column: 2
+
+        # # protocols and profiles section starts here
+
+        enable_bluegreen: # Service_HTTPS
+          title: Enable Blue Green LB
+          description: Enable Blue Green Load Balancing
+          type: boolean
+          default: true
+          uiMetaCM:
+            widget: ToggleWidget
+            order: 0
+            column: 3
+            columnName: Protocols & Profiles
+        ratio:
+          title: Ratio
+          type: number
+          default: 100
+          minimum: 0
+          maximum: 100
+          dependencies: { enable_bluegreen: true }
+          uiMetaCM:
+            order: 1
+            column: 3
+            columnName: Protocols & Profiles
+        ltorgt:
+          title: Direction
+          type: string
+          enum: ['>','<']
+          default: '>'
+          dependencies: { enable_bluegreen: true }
+          uiMetaCM:
+            order: 2
+            column: 3
+            columnName: Protocols & Profiles
       required:
-        - address
+        - virtualName
+        - pool
     uiMetaCM:
+      field: AdvancedArrayGrid
+      page: 0
       order: 1
-      page: 0
-      pageName: Endpoints (Pool Members)
-  servicePort:
-    title: Service Port
-    description: Port for the pool members
-    type: number
-    default: 80
-    minimum: 0
-    maximum: 65535
-    uiMetaCM:
-      order: 2
-      page: 0
-  loadBalancingMode:
-    title: Load-Balancing Mode
-    description: List of load balancing modes available
-    type: string
-    enum:
-      - least-connections-member
-      - ratio-least-connections-member
-      - ratio-session
-      - round-robin
-    default: round-robin
-    uiMetaCM:
-      order: 3
-      page: 0
-  blueRatio:
-    title: Blue Ratio
-    description: Percentage of traffic to send to the blue pool
-    type: number
-    minimum: 0
-    maximum: 100
-    default: 80
-    uiMetaCM:
-      order: 4
-      page: 0
-template: >
+      pageName: Virtual Servers
+
+# Central Manager specific UI Widgets - do not modify.
+# first line contains pre deploy text for each feature
+# second line contains the main deploy request parameter of each feature
+# third line contains the command which has the feature request method and parameters
+central_manager:
+  preDeployCM.certificate:
+    certificatesEnum:
+      command: deployCertAndKey:{'certificate_name'='{{certificatesEnum}}'}
+  preDeployCM.wafPolicy:
+    WAFPolicyName:
+      command: wafPolicy:{'policy_name'='{{WAFPolicyName}}'}
+  preDeployCM.iRuleContent:
+    iRulesEnum:
+      command: getIRuleContent
+  preDeployCM.accessAdditionalConfigurations:
+    accessPolicyEnum:
+      command: accessAdditionalConfigurations:{'policyName'= '{{accessPolicyEnum}}'}
+  preDeployCM.accessPolicy:
+    accessPolicyEnum:
+      command: accessPolicy:{'policyName'= '{{accessPolicyEnum}}'}
+template: |
   {
-    "class": "AS3",
+      "class": "AS3",
       "action": "deploy",
       "persist": true,
       "declaration": {
-        "class": "ADC",
-        "id": "myid",
-        "schemaVersion": "3.35.0",
-        "{{randomized_tenant_name}}": {
-          "class": "Tenant",
-          "{{application_name}}": {
-            "class": "Application",
-            "serviceMain": {
-              "class": "Service_HTTP",
-              "virtualPort": {{virtualPort}},
-              "virtualAddresses": ["{{virtualAddresses}}"],
-              "pool": "{{application_name}}_blue_pool",
-              "iRules": [ "{{application_name}}_blue_green_iRule" ]
-            },
-            "{{application_name}}_blue_pool": {
-              "class": "Pool",
-              "monitors": [
-                "http"
-              ],
-              "loadBalancingMode": "{{loadBalancingMode}}",
-              "members": [
-                {
-                  "servicePort": {{servicePort}},
-                  "servers": {{blue_servers::array}}
-                }
-            ]
+          "class": "ADC",
+          "id": "blue-green-example-template",
+          "label": "Blue Green Example Template",
+          "remark": "{{application_description}}",
+          "schemaVersion": "3.43.0",
+          "controls": {
+              "class": "Controls",
+              "logLevel": "error"
           },
-            "{{application_name}}_green_pool": {
-              "class": "Pool",
-              "monitors": [
-                "http"
-              ],
-              "loadBalancingMode": "{{loadBalancingMode}}",
-              "members": [
-                {
-                  "servicePort": {{servicePort}},
-                  "servers": {{green_servers::array}}
-                }
-            ]
-          },		  
-          "{{application_name}}_blue_green_iRule": {
-            "class": "iRule",
-            "iRule": "when RULE_INIT { set static::ratio {{blueRatio}} }\nwhen CLIENT_ACCEPTED {\nset rand [expr {[TCP::client_port] % 100}]\nif { $rand > $static::ratio } {\n pool {{application_name}}_green_pool\n }\n}"
+        "{{randomized_tenant_name}}": {
+            "class": "Tenant",
+            "{{application_name}}": {
+              "class": "Application",
+              {{#pools}}
+                "{{poolName}}": {
+                  "class": "Pool",
+                  "loadBalancingMode": {{loadBalancingMode}},
+                  "members": [{
+                    "servers": [
+                      {{#poolMembers}}
+                      {
+                        name: "{{address}}",
+                        address: {{address}}
+                      },
+                      {{/poolMembers}}
+                    ],
+                    "servicePort": {{servicePort::integer}}
+                  }],
+                  "monitors": [{{monitorType}}]
+                },
+              {{/pools}}
+              {{#virtuals}}
+                {{#enable_bluegreen}}
+                  "{{application_name}}_blue_green_iRule": {
+                      "class": "iRule",
+                      "iRule": "when RULE_INIT { set static::ratio {{ratio}} }\nwhen CLIENT_ACCEPTED {\nset rand [expr {[TCP::client_port] % 100}]\nif { $rand {{{ltorgt}}} $static::ratio } {\n pool green_pool\n }\n}"
+                  },
+                {{/enable_bluegreen}}
+
+                "{{virtualName}}": {
+                  "pool": "{{pool}}",
+                  "snat": "auto",
+                  "persistenceMethods": [],
+                  "virtualAddresses": [
+                      "{{virtualAddress}}"
+                  ],
+                  "virtualPort": {{virtualPort::integer}},
+                  "class": "Service_HTTP",
+                  {{#enable_bluegreen}}
+                    "iRules": [ "{{application_name}}_blue_green_iRule" ]
+                  {{/enable_bluegreen}}
+                },
+              {{/virtuals}}
+            }
           }
-        }
       }
     }
-  }
