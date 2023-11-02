@@ -1,0 +1,78 @@
+{
+  "class": "ADC",
+  "controls": {
+    "class": "Controls",
+    "logLevel": "error"
+  },
+  "id": "blue-green-example-template",
+  "label": "Blue Green Example Template",
+  "remark": "",
+  "schemaVersion": "3.43.0",
+  "tenantjEZfJ914RSeKdZHgl8u5YbA": {
+    "class": "Tenant",
+    "test1": {
+      "blue_pool": {
+        "class": "Pool",
+        "loadBalancingMode": "round-robin",
+        "members": [
+          {
+            "servers": [
+              {
+                "address": "10.1.20.100",
+                "name": "10.1.20.100"
+              }
+            ],
+            "servicePort": 8080
+          }
+        ],
+        "monitors": [
+          "http"
+        ]
+      },
+      "blue_pool_service": {
+        "class": "Service_Pool",
+        "pool": "blue_pool"
+      },
+      "class": "Application",
+      "green_pool": {
+        "class": "Pool",
+        "loadBalancingMode": "round-robin",
+        "members": [
+          {
+            "servers": [
+              {
+                "address": "10.1.20.101",
+                "name": "10.1.20.101"
+              }
+            ],
+            "servicePort": 3000
+          }
+        ],
+        "monitors": [
+          "http"
+        ]
+      },
+      "green_pool_service": {
+        "class": "Service_Pool",
+        "pool": "green_pool"
+      },
+      "http_vs": {
+        "class": "Service_HTTP",
+        "iRules": [
+          "test1_blue_green_iRule"
+        ],
+        "persistenceMethods": [],
+        "pool": "blue_pool",
+        "snat": "auto",
+        "virtualAddresses": [
+          "10.1.10.78"
+        ],
+        "virtualPort": 80
+      },
+      "test1_blue_green_iRule": {
+        "class": "iRule",
+        "iRule": "when CLIENT_ACCEPTED {\nlog local0. [TCP::client_port]\nset rand [expr {[TCP::client_port] % 100}]\nif { $rand > 80 } {\n pool /app/tenantjEZfJ914RSeKdZHgl8u5YbA:test1/pool/tenantjEZfJ914RSeKdZHgl8u5YbA:test1:green_pool_service\n }\n}"
+      }
+    }
+  }
+}
