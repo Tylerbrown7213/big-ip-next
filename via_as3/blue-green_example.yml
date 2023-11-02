@@ -10,7 +10,7 @@
   "schemaVersion": "3.43.0",
   "tenantjEZfJ914RSeKdZHgl8u5YbA": {
     "class": "Tenant",
-    "test1": {
+    "blue-green-app-as3": {
       "blue_pool": {
         "class": "Pool",
         "loadBalancingMode": "round-robin",
