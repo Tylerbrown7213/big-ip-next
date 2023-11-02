@@ -59,8 +59,9 @@ definitions:
   pools: # Do not remove and do not change the property name. This is used to take pools information
     type: array
     default:
-      -  {"loadBalancingMode": "round-robin","monitorType": ["http"],"poolName": "green_pool","servicePort": 80}
-    minItems: 1
+      -  {"loadBalancingMode": "round-robin","monitorType": ["http"],"poolName": "blue_pool","servicePort": 80}
+    minItems: 2
+    maxItems: 2
     uniqueItemProperties: ['poolName']
     items:
       type: object
@@ -143,7 +144,7 @@ definitions:
   virtuals: # Do not remove and do not change the property name. This is used to take virtual server information
     type: array
     default:
-      - {'virtualName':'http_vs',"pool": "green_pool"}
+      - {'virtualName':'http_vs',"pool": "blue_pool"}
     minItems: 1
     uniqueItemProperties: ['virtualName']
     items:
@@ -196,22 +197,12 @@ definitions:
         ratio:
           title: Ratio
           type: number
-          default: 100
+          default: 50
           minimum: 0
           maximum: 100
           dependencies: { enable_bluegreen: true }
           uiMetaCM:
             order: 1
-            column: 3
-            columnName: Protocols & Profiles
-        ltorgt:
-          title: Direction
-          type: string
-          enum: ['>','<']
-          default: '>'
-          dependencies: { enable_bluegreen: true }
-          uiMetaCM:
-            order: 2
             column: 3
             columnName: Protocols & Profiles
       required:
@@ -263,6 +254,10 @@ template: |
             "{{application_name}}": {
               "class": "Application",
               {{#pools}}
+                "{{poolName}}_service": {
+                  "class": "Service_Pool",
+                  "pool":"{{poolName}}"
+                },              
                 "{{poolName}}": {
                   "class": "Pool",
                   "loadBalancingMode": {{loadBalancingMode}},
@@ -284,7 +279,7 @@ template: |
                 {{#enable_bluegreen}}
                   "{{application_name}}_blue_green_iRule": {
                       "class": "iRule",
-                      "iRule": "when RULE_INIT { set static::ratio {{ratio}} }\nwhen CLIENT_ACCEPTED {\nset rand [expr {[TCP::client_port] % 100}]\nif { $rand {{{ltorgt}}} $static::ratio } {\n pool green_pool\n }\n}"
+                      "iRule": "when CLIENT_ACCEPTED {\nlog local0. [TCP::client_port]\nset rand [expr {[TCP::client_port] % 100}]\nif { $rand > {{ratio}} } {\n pool /app/{{randomized_tenant_name}}:{{application_name}}/pool/{{randomized_tenant_name}}:{{application_name}}:green_pool_service\n }\n}"
                   },
                 {{/enable_bluegreen}}
 
