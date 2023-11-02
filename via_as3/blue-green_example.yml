@@ -71,7 +71,7 @@
       },
       "test1_blue_green_iRule": {
         "class": "iRule",
-        "iRule": "when CLIENT_ACCEPTED {\nlog local0. [TCP::client_port]\nset rand [expr {[TCP::client_port] % 100}]\nif { $rand > 80 } {\n pool /app/tenantjEZfJ914RSeKdZHgl8u5YbA:test1/pool/tenantjEZfJ914RSeKdZHgl8u5YbA:test1:green_pool_service\n }\n}"
+        "iRule": "when RULE_INIT { set static::ratio 50 }\n when CLIENT_ACCEPTED {\nlog local0. [TCP::client_port]\nset rand [expr {[TCP::client_port] % 100}]\nif { $rand > $static::ratio } {\n pool /app/tenantjEZfJ914RSeKdZHgl8u5YbA:test1/pool/tenantjEZfJ914RSeKdZHgl8u5YbA:test1:green_pool_service\n }\n}"
       }
     }
   }
