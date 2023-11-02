@@ -10,7 +10,7 @@
   "schemaVersion": "3.43.0",
   "tenantjEZfJ914RSeKdZHgl8u5YbA": {
     "class": "Tenant",
-    "blue-green-app-as3": {
+    "blue-green-app1-as3": {
       "blue_pool": {
         "class": "Pool",
         "loadBalancingMode": "round-robin",
@@ -59,7 +59,7 @@
       "http_vs": {
         "class": "Service_HTTP",
         "iRules": [
-          "test1_blue_green_iRule"
+          "blue-green-app1-as3-iRule"
         ],
         "persistenceMethods": [],
         "pool": "blue_pool",
@@ -69,9 +69,9 @@
         ],
         "virtualPort": {{vip_port1}}
       },
-      "test1_blue_green_iRule": {
+      "blue-green-app1-as3-iRule": {
         "class": "iRule",
-        "iRule": "when RULE_INIT { set static::ratio {{ratio}} }\n when CLIENT_ACCEPTED {\nlog local0. [TCP::client_port]\nset rand [expr {[TCP::client_port] % 100}]\nif { $rand > $static::ratio } {\n pool /app/tenantjEZfJ914RSeKdZHgl8u5YbA:test1/pool/tenantjEZfJ914RSeKdZHgl8u5YbA:test1:green_pool_service\n }\n}"
+        "iRule": "when RULE_INIT { set static::ratio {{ratio}} }\n when CLIENT_ACCEPTED {\nlog local0. [TCP::client_port]\nset rand [expr {[TCP::client_port] % 100}]\nif { $rand > $static::ratio } {\n pool /app/tenantjEZfJ914RSeKdZHgl8u5YbA:blue-green-app1-as3/pool/tenantjEZfJ914RSeKdZHgl8u5YbA:blue-green-app1-as3:green_pool_service\n }\n}"
       }
     }
   }
