@@ -18,11 +18,11 @@
           {
             "servers": [
               {
-                "address": "10.1.20.100",
-                "name": "10.1.20.100"
+                "address": "{{app_server1_ip}}",
+                "name": "{{app_server1_ip}}"
               }
             ],
-            "servicePort": 8080
+            "servicePort": {{app_server1_port}}
           }
         ],
         "monitors": [
@@ -41,11 +41,11 @@
           {
             "servers": [
               {
-                "address": "10.1.20.101",
-                "name": "10.1.20.101"
+                "address": "{{app_server2_ip}}",
+                "name": "{{app_server2_ip}}"
               }
             ],
-            "servicePort": 3000
+            "servicePort": {{app_server2_port}}
           }
         ],
         "monitors": [
@@ -65,13 +65,13 @@
         "pool": "blue_pool",
         "snat": "auto",
         "virtualAddresses": [
-          "10.1.10.78"
+          "{{vip2}}"
         ],
-        "virtualPort": 80
+        "virtualPort": {{vip_port1}}
       },
       "test1_blue_green_iRule": {
         "class": "iRule",
-        "iRule": "when RULE_INIT { set static::ratio 50 }\n when CLIENT_ACCEPTED {\nlog local0. [TCP::client_port]\nset rand [expr {[TCP::client_port] % 100}]\nif { $rand > $static::ratio } {\n pool /app/tenantjEZfJ914RSeKdZHgl8u5YbA:test1/pool/tenantjEZfJ914RSeKdZHgl8u5YbA:test1:green_pool_service\n }\n}"
+        "iRule": "when RULE_INIT { set static::ratio {{ratio}} }\n when CLIENT_ACCEPTED {\nlog local0. [TCP::client_port]\nset rand [expr {[TCP::client_port] % 100}]\nif { $rand > $static::ratio } {\n pool /app/tenantjEZfJ914RSeKdZHgl8u5YbA:test1/pool/tenantjEZfJ914RSeKdZHgl8u5YbA:test1:green_pool_service\n }\n}"
       }
     }
   }
